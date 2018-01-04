@@ -1,0 +1,5 @@
+
+
+
+class TreatmentRecorder(object):
+    pass
