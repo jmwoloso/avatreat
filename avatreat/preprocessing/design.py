@@ -83,4 +83,23 @@ class TreatmentDesign(object):
         ----------
 
         """
+        self.id_features = id_features
+        self.datetime_features = datetime_features
+        self.target = target
+        self.target_type = target_type
+        self.missing_numerical_strategy = missing_numerical_strategy
+        self.numerical_fill_value = numerical_fill_value if \
+            missing_numerical_strategy == "systematically" else "mean"
+        self.ints_to_categorical = ints_to_categorical
+        self.categorical_fill_value = categorical_fill_value
+        self.rare_level_threshold = rare_level_threshold
+        self.allowable_rare_percentage = allowable_rare_percentage
+        self.variable_significance_threshold = variable_significance_threshold
+        self.smoothing_factor = smoothing_factor
+
+
+    def fit(self):
+        pass
+
+    def transform(self):
         pass
