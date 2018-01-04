@@ -1,0 +1,12 @@
+# we adhere to the pandas commit convention below:
+ENH: Enhancement, new functionality
+BUG: Bug fix
+DOC: Additions/updates to documentation
+TST: Additions/updates to tests
+BLD: Updates to the build process/scripts
+PERF: Performance improvement
+CLN: Code cleanup
+
+# When referencing a GitHub issue, please use the following convention in your
+# commit message:
+GH1234 where 1234 is the issue you're referencing
