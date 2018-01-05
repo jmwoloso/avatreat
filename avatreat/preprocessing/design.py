@@ -1,4 +1,5 @@
-from ..utils.routines import exclude_features, reindex_target
+from ..utils.routines import exclude_features, reindex_target, \
+    get_column_dtypes, get_high_cardinality_features
 
 
 class TreatmentDesign(object):
@@ -89,15 +90,10 @@ class TreatmentDesign(object):
         in-memory footprint of the data.
 
 
-
         Attributes
         ----------
-        self.
-
-
-        Returns
-        -------
-        fitted instance of TreatmentDesign
+        self.df_    :   pandas.DataFrame instance with ID and
+        datetime features removed.
 
         """
         # if no id features are supplied, replace None with empty list
@@ -132,9 +128,10 @@ class TreatmentDesign(object):
         DF   :   pandas.DataFrame instance; dataframe used to to
         design treatments.
 
+
         Returns
         -------
-
+        self    :   object
         """
         # remove the id and datetime features
         self.df_ = exclude_features(dataframe=DF,
@@ -144,6 +141,20 @@ class TreatmentDesign(object):
         # move the target feature to the end of the dataframe
         self.df_ = reindex_target(dataframe=self.df_,
                                   target=self.target)
+
+        # get the features by dtype
+        self.int_features_, self.float_features_, self.object_features_ = \
+            get_column_dtypes(dataframe=self.df_)
+
+        # find high-cardinality features from within object features
+        self.high_cardinality_features_, self.categorical_features_ = \
+            get_high_cardinality_features(dataframe=self.df_,
+                                          object_features=self.object_features_,
+                                          rare_level_threshold=0.02,
+                                          allowable_rare_percentage=0.1)
+
+
+
 
 
     def transform(self):
