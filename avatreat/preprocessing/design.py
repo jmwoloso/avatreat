@@ -2,8 +2,7 @@
 
 
 class TreatmentDesign(object):
-    """Class for designing data treatments."""
-    def __init__(self, dataframe=None, id_features=None,
+    def __init__(self, id_features=None,
                  datetime_features=None,
                  target=None, target_type="categorical",
                  missing_numerical_strategy="systematically",
@@ -14,12 +13,10 @@ class TreatmentDesign(object):
                  smoothing_factor=0.0,
                  dtype_compression=False):
         """
+        Class for designing data treatments.
 
         Parameters
         ----------
-        dataframe   :   pandas.DataFrame; the dataset from which
-        treatments will be designed.
-
         id_features :   one of {list of features, None}; default=None;
         list of features that are purely for identification and will be
         excluded from treatment design.
@@ -91,12 +88,27 @@ class TreatmentDesign(object):
         useful for very large datasets as it helps reduce the
         in-memory footprint of the data.
 
+
+
         Attributes
         ----------
+        self.
+
+
+        Returns
+        -------
+        fitted instance of TreatmentDesign
 
         """
-        self.id_features = id_features
-        self.datetime_features = datetime_features
+        # if no id features are supplied, replace None with empty list
+        self.id_features = list(id_features) \
+            if id_features is not None \
+            else list()
+        # if no datetime features are supplied, replace None with
+        # empty list
+        self.datetime_features = list(datetime_features) \
+            if datetime_features is not None \
+            else list()
         self.target = target
         self.target_type = target_type
         self.missing_numerical_strategy = missing_numerical_strategy
@@ -111,9 +123,31 @@ class TreatmentDesign(object):
         self.dtype_compression = dtype_compression
 
 
-    def fit(self):
-        """Runs the treatment design processes on the dataset."""
-        # separate out the irrelevant columns
+    def fit(self, DF):
+        """
+        Runs the treatment design processes on the dataset.
+
+        Parameters
+        ----------
+        DF   :   pandas.DataFrame instance; dataframe used to to
+        design treatments.
+
+        Returns
+        -------
+
+        """
+        # keep all features except id, datetime
+        self.df_ = DF.loc[:, ~DF.columns.isin(self.id_features +
+                                              self.datetime_features)]
+
+        # move `target` column to the end (if present)
+        if self.target is not None:
+            target_vals = self.df_.loc[:, self.target].values
+            self.df_ = self.df_.drop(labels=[self.target],
+                                     axis=1)
+
+            self.df_.loc[:, self.target] = target_vals
+
 
     def transform(self):
         """Transforms new data per the treatment design plans."""
