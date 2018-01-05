@@ -3,7 +3,8 @@
 
 class TreatmentDesign(object):
     """Class for designing data treatments."""
-    def __init__(self, id_features=None, datetime_features=None,
+    def __init__(self, dataframe=None, id_features=None,
+                 datetime_features=None,
                  target=None, target_type="categorical",
                  missing_numerical_strategy="systematically",
                  numerical_fill_value=-1.0, ints_to_categorical=True,
@@ -16,6 +17,9 @@ class TreatmentDesign(object):
 
         Parameters
         ----------
+        dataframe   :   pandas.DataFrame; the dataset from which
+        treatments will be designed.
+
         id_features :   one of {list of features, None}; default=None;
         list of features that are purely for identification and will be
         excluded from treatment design.
@@ -108,7 +112,9 @@ class TreatmentDesign(object):
 
 
     def fit(self):
-        pass
+        """Runs the treatment design processes on the dataset."""
+        # separate out the irrelevant columns
 
     def transform(self):
+        """Transforms new data per the treatment design plans."""
         pass
