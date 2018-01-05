@@ -5,7 +5,7 @@
       1. expose `dd.read_csv` keywords, etc.
 2. add serialization functionality for `TreatmentDesign`
 3. add functionality to handle datetime columns and include them in treatment design
-
+4. allow passing in dict of {column_name: dtype}
 
 # `[tests]`
 1. add tests for `preprocessing.categorical`
