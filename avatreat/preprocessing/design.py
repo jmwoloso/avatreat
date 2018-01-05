@@ -1,4 +1,4 @@
-
+from ..utils.routines import exclude_features, reindex_target
 
 
 class TreatmentDesign(object):
@@ -136,17 +136,14 @@ class TreatmentDesign(object):
         -------
 
         """
-        # keep all features except id, datetime
-        self.df_ = DF.loc[:, ~DF.columns.isin(self.id_features +
-                                              self.datetime_features)]
+        # remove the id and datetime features
+        self.df_ = exclude_features(dataframe=DF,
+                                    id_features=self.id_features,
+                                    datetime_features=self.datetime_features)
 
-        # move `target` column to the end (if present)
-        if self.target is not None:
-            target_vals = self.df_.loc[:, self.target].values
-            self.df_ = self.df_.drop(labels=[self.target],
-                                     axis=1)
-
-            self.df_.loc[:, self.target] = target_vals
+        # move the target feature to the end of the dataframe
+        self.df_ = reindex_target(dataframe=self.df_,
+                                  target=self.target)
 
 
     def transform(self):

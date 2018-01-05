@@ -28,28 +28,36 @@ class TestTreatmentDesign(unittest.TestCase):
         the fit method."""
         ids = ["i"]
         datetimes = ["t"]
-        target = "y"
 
         # instantiate the class
         td = TreatmentDesign(id_features=ids,
-                             datetime_features=datetimes,
-                             target=target)
+                             datetime_features=datetimes)
 
         # fit to the test dataframe and ensure the appropriate
-        # columns are excluded and that the last column is our target
-        # column
+        # columns are excluded
+        td.fit(self.df)
+
+        # test case
+        remaining_features=["u", "v", "w", "x", "y"]
+
+        # test that the remaining features are correct
+        self.assertListEqual(list(td.df_.columns), remaining_features)
+
+
+    def test_fit_reindex_target(self):
+        target = "y"
+
+        # instantiate the class
+        td = TreatmentDesign(target=target)
+
+        # fit the instance and ensure it moves the target to the end
         td.fit(self.df)
 
         # test cases
         last_feature="y"
-        remaining_features=["u", "v", "w", "x", "y"]
 
         # test that the last feature is the target
         self.assertEqual(self.df.columns[-1], last_feature)
-        self.assertListEqual(list(td.df_.columns), remaining_features)
-
-
-
 
 
     def tearDown(self):
