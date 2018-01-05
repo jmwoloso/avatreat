@@ -10,7 +10,8 @@ class TreatmentDesign(object):
                  categorical_fill_value="NA", rare_level_threshold=0.02,
                  allowable_rare_percentage=0.1,
                  variable_significance_threshold="1/n",
-                 smoothing_factor=0.0):
+                 smoothing_factor=0.0,
+                 dtype_compression=False):
         """
 
         Parameters
@@ -79,6 +80,13 @@ class TreatmentDesign(object):
         pseudo-observations to add as a Laplace smoothing factor;
         reduces the range of predictions of rare levels.
 
+        dtype_compression   :   bool; default=True; whether to
+        downcast column dtypes (e.g. np.int64 -> np.int8);
+        downcasting depends on the range of values present for a
+        given column and may not always be possible/successful;
+        useful for very large datasets as it helps reduce the
+        in-memory footprint of the data.
+
         Attributes
         ----------
 
@@ -96,6 +104,7 @@ class TreatmentDesign(object):
         self.allowable_rare_percentage = allowable_rare_percentage
         self.variable_significance_threshold = variable_significance_threshold
         self.smoothing_factor = smoothing_factor
+        self.dtype_compression = dtype_compression
 
 
     def fit(self):
