@@ -45,6 +45,8 @@ class TestTreatmentDesign(unittest.TestCase):
 
 
     def test_fit_reindex_target(self):
+        """Tests that the target feature gets moved to the end of the
+        dataframe."""
         target = "y"
 
         # instantiate the class
@@ -58,6 +60,29 @@ class TestTreatmentDesign(unittest.TestCase):
 
         # test that the last feature is the target
         self.assertEqual(self.df.columns[-1], last_feature)
+
+
+    def test_fit_high_cardinality_features(self):
+        """Tests that object columns are divided correctly between
+        high-cardinality and categorical features."""
+        # add a high-cardinality feature to the dataframe
+        self.df.loc[:, "h"] = ["a", "b", "c", "d", "e"]
+
+        # instantiate the class
+        td = TreatmentDesign(rare_level_threshold=0.20,
+                             allowable_rare_percentage=0.20)
+
+        # fit the instance
+        td.fit(self.df)
+
+        # test cases
+        high_cardinality_features = ["h"]
+        categorical_features = ["w", "x"]
+
+        self.assertListEqual(td.high_cardinality_features_,
+                             high_cardinality_features)
+        self.assertListEqual(td.categorical_features_,
+                             categorical_features)
 
 
     def tearDown(self):
