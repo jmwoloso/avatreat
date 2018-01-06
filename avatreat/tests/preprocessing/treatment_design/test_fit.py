@@ -62,6 +62,11 @@ class TestTreatmentDesign(unittest.TestCase):
         self.assertEqual(self.df.columns[-1], last_feature)
 
 
+    def test_fit_cast_float_to_int(self):
+        """Tests the functionality of cast_float_to_int."""
+        pass
+
+
     def test_fit_high_cardinality_features(self):
         """Tests that object columns are divided correctly between
         high-cardinality and categorical features."""

@@ -1,4 +1,4 @@
-
+import pandas as pd
 
 
 
@@ -23,13 +23,37 @@ def reindex_target(dataframe=None, target=None):
     return dataframe
 
 
+def cast_float_to_int(dataframe=None,
+                      fill_value=-1):
+    """Attempts to cast float features to int which will then be
+    treated as categorical further downstream."""
+    int_dtypes = ["int_", "intc", "intp", "int8", "int16", "int32",
+                  "int64", "uint8", "uint16", "uint32", "uint64"]
+
+    float_dtypes = ["float_", "float16", "float32", "float64"]
+
+    floats = dataframe.select_dtypes(include=["float"]).columns
+
+    # fill missing values with `fill_value` and then attempt to
+    # convert to int
+    dataframe.loc[:, floats] = dataframe.loc[:, floats]\
+        .apply(lambda x: pd.to_numeric(x, downcast="integer"))
+
+    return dataframe
+
+
 def get_column_dtypes(dataframe=None):
     """Returns lists of the various dtypes that will be used further
     downstream in the processing pipeline."""
-    int_features = dataframe.select_dtypes(include=["int"])
-    float_features = dataframe.select_dtypes(include=["float"])
+    int_dtypes = ["int_", "intc", "intp", "int8", "int16", "int32",
+                  "int64", "uint8", "uint16", "uint32", "uint64"]
+
+    float_dtypes = ["float_", "float16", "float32", "float64"]
+    int_features = dataframe.select_dtypes(include=int_dtypes)
+    float_features = dataframe.select_dtypes(include=float_dtypes)
     object_features = dataframe.select_dtypes(include=["object"])
-    return int_features, float_features, object_features
+    bool_features = dataframe.select_dtypes(include=["bool_"])
+    return int_features, float_features, object_features, bool_features
 
 
 def get_high_cardinality_features(dataframe=None,
