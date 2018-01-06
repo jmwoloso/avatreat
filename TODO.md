@@ -8,7 +8,7 @@
 4. allow passing in dict of {column_name: dtype}
 5. add/allow passing in suffix dict to use for column renaming (e.g. {"integer": "n", "float": "f"})
 6. add input validation
-
+7. add functionality to discover other hidden dtypes besides numeric
 # `[tests]`
 1. add tests for `preprocessing.categorical`
 2. add tests for `preprocessing.numerical`
