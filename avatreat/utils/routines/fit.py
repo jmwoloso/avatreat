@@ -1,66 +1,188 @@
 import pandas as pd
 
+from .constants import INT_DTYPES, FLOAT_DTYPES, NUMERICAL_DTYPES
 
 
-def exclude_features(dataframe=None, id_features=None,
-                     datetime_features=None):
-    """Removes ID and Datetime features and returns the modified
-    dataframe."""
-    # keep all features except id, datetime
-    return dataframe.loc[:, ~dataframe.columns.isin(id_features +
-                                                    datetime_features)]
+def find_hidden_dtypes(dataframe=None):
+    """Finds hidden dtypes among the object dtypes."""
+    objs = dataframe.select_dtypes(include=["object"]).columns.tolist()
+
+    for feature in objs:
+        try:
+            # attempt to cast object dtypes to numeric
+            dataframe.loc[:, feature] = \
+                dataframe.loc[:, feature]\
+                    .apply(lambda x: pd.to_numeric(x))
+        except ValueError as e:
+            pass
+
+    # iterate through the remaining columns and check for booleans
+    # disguised as strings
+    objs_ = dataframe.select_dtypes(include=["object"]).columns.tolist()
+    for feature in objs_:
+        uniques = dataframe.loc[:, feature].unique().tolist()
+        if len(uniques) != 2:
+            continue
+        else:
+            try:
+                uniques = [u.capitalize().strip() for u in uniques]
+                bools = ["True", "False"]
+                if set(bools) == set(uniques):
+                    # first capitalize the values
+                    dataframe.loc[:, feature] = \
+                        dataframe.loc[:, feature]\
+                            .map(lambda x: x.capitalize().strip())
+                    dataframe.loc[:, feature] = \
+                        dataframe.loc[:, feature].map({"True":  True,
+                                                       "False": False})
+            except ValueError as e:
+                continue
+
+
+    #TODO [ENH]: add discovery for remaining dtypes (datetime, timedelta, bool)
+
+    return dataframe
+
+
+def fill_missing_values(dataframe=None,
+                        numerical_fill_value=-1.0,
+                        categorical_fill_value="NA"):
+    """Replaces missing values by dtype."""
+    objs = dataframe.select_dtypes(include=["object"]).columns
+    ints = dataframe.select_dtypes(include=INT_DTYPES).columns
+    floats = dataframe.select_dtypes(include=FLOAT_DTYPES).columns
+
+    # replace missing values
+    dataframe.loc[:, objs] = dataframe.loc[:, objs]\
+        .fillna(value=categorical_fill_value)
+    dataframe.loc[:, ints] = dataframe.loc[:, ints]\
+        .fillna(value=int(numerical_fill_value))
+    dataframe.loc[:, floats] = dataframe.loc[:, floats]\
+        .fillna(value=numerical_fill_value)
+
+    return dataframe
+
+
+def find_zero_variance_features(dataframe=None,
+                                exclude_zero_variance_features=True,
+                                categorical_fill_value="NA"):
+    """Detects zero-variance features which contain no useful
+    information for downstream algorithms."""
+    blacklist = list()
+
+    if exclude_zero_variance_features is False:
+        return blacklist
+
+    elif exclude_zero_variance_features is True:
+        # numeric features with missing values show up as object dtypes
+        # attempt to cast anything to a number that we can
+        for feature in dataframe.columns:
+            try:
+                dataframe.loc[:, feature] = \
+                    dataframe.loc[:, feature]\
+                        .apply(lambda x: pd.to_numeric(x))
+
+            # thrown when encountering strings
+            except ValueError as e:
+                continue
+
+            # thrown when encountering datetimes
+            except TypeError as e:
+                continue
+
+        # check numeric features for zero-variance
+        for feature in dataframe\
+                .select_dtypes(include=NUMERICAL_DTYPES).columns:
+            uniques = dataframe.loc[:, feature].unique()
+            if len(uniques) < 2:
+                blacklist.append(feature)
+                continue
+
+        # check object features for zero-variance
+        for feature in dataframe.select_dtypes(include=["object"]).columns:
+            vals = dataframe.loc[:, feature].values
+            vals = [v.upper().strip() for v in vals]
+            uniques = pd.unique(vals)
+            if len(uniques) < 2:
+                blacklist.append(feature)
+                continue
+        return blacklist
+
+
+def get_treatment_features(dataframe=None, id_features=None,
+                           datetime_features=None, target=None,
+                           blacklist=None):
+    """Creates a list of features that will be used for treatment
+    design."""
+    # keep all features except id, datetime, target and blacklisted
+    treatment_features = \
+        dataframe.loc[:, ~dataframe.columns.isin(id_features +
+                                                 datetime_features +
+                                                 [target] +
+                                                 blacklist)].columns.tolist()
+    return treatment_features
 
 
 def reindex_target(dataframe=None, target=None):
     """Moves the target feature to the end of the dataframe."""
     # move `target` column to the end (if present)
     if target is not None:
-        target_vals = dataframe.loc[:, target].values
-        dataframe = dataframe.drop(labels=[target],
-                                   axis=1)
+        features = dataframe.columns.tolist()
+        insert_loc = len(features) - 1
+        features.insert(insert_loc,
+                        features.pop(features.index(target)))
+        dataframe = dataframe.reindex(columns=features)
 
-        dataframe.loc[:, target] = target_vals
     return dataframe
 
 
-def cast_float_to_int(dataframe=None,
-                      fill_value=-1):
+def cast_to_int(dataframe=None, treatment_features=None):
     """Attempts to cast float features to int which will then be
     treated as categorical further downstream."""
-    int_dtypes = ["int_", "intc", "intp", "int8", "int16", "int32",
-                  "int64", "uint8", "uint16", "uint32", "uint64"]
+    floats = \
+        dataframe.loc[:, treatment_features]\
+            .select_dtypes(include=FLOAT_DTYPES).columns
 
-    float_dtypes = ["float_", "float16", "float32", "float64"]
-
-    floats = dataframe.select_dtypes(include=["float"]).columns
-
-    # fill missing values with `fill_value` and then attempt to
-    # convert to int
     dataframe.loc[:, floats] = dataframe.loc[:, floats]\
         .apply(lambda x: pd.to_numeric(x, downcast="integer"))
 
     return dataframe
 
 
-def get_column_dtypes(dataframe=None):
+def get_column_dtypes(dataframe=None, treatment_features=None):
     """Returns lists of the various dtypes that will be used further
     downstream in the processing pipeline."""
-    int_dtypes = ["int_", "intc", "intp", "int8", "int16", "int32",
-                  "int64", "uint8", "uint16", "uint32", "uint64"]
+    int_features = dataframe.loc[:, treatment_features]\
+        .select_dtypes(include=INT_DTYPES)\
+        .columns\
+        .tolist()
 
-    float_dtypes = ["float_", "float16", "float32", "float64"]
-    int_features = dataframe.select_dtypes(include=int_dtypes)
-    float_features = dataframe.select_dtypes(include=float_dtypes)
-    object_features = dataframe.select_dtypes(include=["object"])
-    bool_features = dataframe.select_dtypes(include=["bool_"])
+    float_features = dataframe.loc[:, treatment_features]\
+        .select_dtypes(include=FLOAT_DTYPES)\
+        .columns\
+        .tolist()
+
+    object_features = dataframe.loc[:,
+                      treatment_features]\
+        .select_dtypes(include=["object"])\
+        .columns\
+        .tolist()
+
+    bool_features = dataframe.loc[:,
+                    treatment_features]\
+        .select_dtypes(include=["bool_"])\
+        .columns\
+        .tolist()
+
     return int_features, float_features, object_features, bool_features
 
 
-def get_high_cardinality_features(dataframe=None,
-                                  object_features=None,
-                                  rare_level_threshold=0.02,
-                                  allowable_rare_percentage=0.1):
-    """Returns a list of high-cardinality features."""
+def find_high_cardinality_features(dataframe=None,
+                                   object_features=None,
+                                   rare_level_threshold=0.02,
+                                   allowable_rare_percentage=0.1):
+    """Returns a list of high-cardinality features and those which
+    can be cast to categorical."""
     # container to hold high-cardinality features
     high_cardinality = list()
 
