@@ -10,6 +10,7 @@
 6. add input validation
 7. add functionality to discover other hidden dtypes besides numeric
 8. add CI to repo
+9. add versioning
 
 # `[tests]`
 1. add tests for `preprocessing.categorical`
