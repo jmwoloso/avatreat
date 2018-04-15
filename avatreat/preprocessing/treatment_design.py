@@ -6,7 +6,7 @@ from avatreat.utils.constants import OBJECT_DTYPES, INT_DTYPES, \
     CATEGORICAL_DTYPES, DATETIMETZ_DTYPES, BOOL_DTYPES
 
 from avatreat.utils.treatment_design import \
-    reindex_target, cast_to_int, \
+    cast_to_int, \
     find_high_cardinality_features
 
 
@@ -204,7 +204,7 @@ class TreatmentDesign(object):
         #     self._find_hidden_dtypes()
 
         # fill in missing values
-        self._fill_missing_values()
+        self.df_ = self._fill_missing_values()
 
         # find features with zero variance and drop them, but note
         # which ones we dropped
@@ -221,8 +221,8 @@ class TreatmentDesign(object):
                 self._get_treatment_features()
 
         # move the target feature to the end of the dataframe
-        # self.df_ = self._reindex_target(dataframe=self.df_,
-        #                           target=self.target)
+        if self.target is not None:
+            self.df_ = self._reindex_target()
 
         # # try and cast float features to ints
         # self.df_.loc[:, self.treatment_features_] = \
@@ -270,6 +270,7 @@ class TreatmentDesign(object):
             .select_dtypes(include=DATETIMETZ_DTYPES).columns
         bool = self.df_.select_dtypes(include=BOOL_DTYPES).columns
         return objs, cats, bool, ints, floats, dts, dttz, tds
+
 
     def _find_hidden_dtypes(self):
         """Finds hidden dtypes among the object dtypes."""
@@ -345,16 +346,17 @@ class TreatmentDesign(object):
     def _fill_missing_values(self):
         """Replaces missing values by dtype."""
         # replace missing values
-        self.df_.loc[:, self.object_features_] = \
-            self.df_.loc[:, self.object_features_]\
+        df = self.df_.copy()
+        df.loc[:, self.object_features_] = \
+            df.loc[:, self.object_features_]\
                 .fillna(value=self.categorical_fill_value)
-        self.df_.loc[:, self.integer_features_] = \
-            self.df_.loc[:, self.integer_features_]\
+        df.loc[:, self.integer_features_] = \
+            df.loc[:, self.integer_features_]\
                 .fillna(value=int(self.numerical_fill_value))
-        self.df_.loc[:, self.float_features_] = \
-            self.df_.loc[:, self.float_features_]\
+        df.loc[:, self.float_features_] = \
+            df.loc[:, self.float_features_]\
                 .fillna(value=self.numerical_fill_value)
-        return self
+        return df
 
 
     def _find_zero_variance_features(self):
@@ -390,4 +392,12 @@ class TreatmentDesign(object):
         return treatment_features
 
 
-    # def _reindex_target(self):
+    def _reindex_target(self):
+        """Moves the target feature to the end of the dataframe."""
+        # move `target` column to the end (if present)
+        features = self.df_.columns.tolist()
+        insert_loc = len(features) - 1
+        features.insert(insert_loc,
+                        features.pop(features.index(self.target)))
+        dataframe = self.df_.reindex(columns=features)
+        return dataframe

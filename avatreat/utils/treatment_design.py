@@ -4,18 +4,6 @@ from avatreat.utils.constants import OBJECT_DTYPES, INT_DTYPES, \
     FLOAT_DTYPES, NUMERICAL_DTYPES, DATETIME_DTYPES, TIMEDELTAS, \
     CATEGORICAL_DTYPES, DATETIMETZ_DTYPES, BOOL_DTYPES
 
-def reindex_target(dataframe=None, target=None):
-    """Moves the target feature to the end of the dataframe."""
-    # move `target` column to the end (if present)
-    if target is not None:
-        features = dataframe.columns.tolist()
-        insert_loc = len(features) - 1
-        features.insert(insert_loc,
-                        features.pop(features.index(target)))
-        dataframe = dataframe.reindex(columns=features)
-
-    return dataframe
-
 
 def cast_to_int(dataframe=None, treatment_features=None):
     """Attempts to cast float features to int which will then be
