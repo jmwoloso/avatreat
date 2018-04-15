@@ -4,20 +4,6 @@ from avatreat.utils.constants import OBJECT_DTYPES, INT_DTYPES, \
     FLOAT_DTYPES, NUMERICAL_DTYPES, DATETIME_DTYPES, TIMEDELTAS, \
     CATEGORICAL_DTYPES, DATETIMETZ_DTYPES, BOOL_DTYPES
 
-
-def get_dtypes(dataframe=None):
-    """Finds the dtypes and creates a mapping."""
-    objs = dataframe.select_dtypes(include=OBJECT_DTYPES).columns
-    ints = dataframe.select_dtypes(include=INT_DTYPES).columns
-    floats = dataframe.select_dtypes(include=FLOAT_DTYPES).columns
-    dts = dataframe.select_dtypes(include=DATETIME_DTYPES).columns
-    tds = dataframe.select_dtypes(include=TIMEDELTAS).columns
-    cats = dataframe.select_dtypes(include=CATEGORICAL_DTYPES).columns
-    dttz = dataframe.select_dtypes(include=DATETIMETZ_DTYPES).columns
-    bool = dataframe.select_dtypes(include=BOOL_DTYPES).columns
-    return objs, ints, floats, dts, tds, cats, dttz, bool
-
-
 def reindex_target(dataframe=None, target=None):
     """Moves the target feature to the end of the dataframe."""
     # move `target` column to the end (if present)

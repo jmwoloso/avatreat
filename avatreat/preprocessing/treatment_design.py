@@ -1,8 +1,11 @@
 import numpy as np
 import pandas as pd
 
+from avatreat.utils.constants import OBJECT_DTYPES, INT_DTYPES, \
+    FLOAT_DTYPES, NUMERICAL_DTYPES, DATETIME_DTYPES, TIMEDELTAS, \
+    CATEGORICAL_DTYPES, DATETIMETZ_DTYPES, BOOL_DTYPES
 
-from avatreat.utils.treatment_design import get_dtypes, \
+from avatreat.utils.treatment_design import \
     reindex_target, cast_to_int, \
     find_high_cardinality_features
 
@@ -122,10 +125,10 @@ class TreatmentDesign(object):
 
         datetime_features_: features with the datetime dtype.
 
-        timedelta_features_:    features with the timedelta dtype.
-
         datetime_timezone_features_:    features with the datetime
         timezone dtype.
+
+        timedelta_features_:    features with the timedelta dtype.
 
         high_cardinality_features_: features considered to be
         high-cardinality features (high relative number of category
@@ -182,11 +185,11 @@ class TreatmentDesign(object):
             self.excluded_features_.append(self.index_feature)
 
         # get the available dtypes
-        self.object_features_, self.integer_features_, \
+        self.object_features_, self.categorical_features_, \
+        self.boolean_features_, self.integer_features_, \
         self.float_features_, self.datetime_features_, \
-        self.timedelta_features_, self.categorical_features_, \
-        self.datetime_timezone_features_, self.boolean_features_ = \
-            get_dtypes(dataframe=self.df_)
+        self.datetime_timezone_features_, self.timedelta_features_ = \
+            self._get_dtypes()
 
         # TODO: add support for feature engineering with datetimes
         self.excluded_features_ += \
@@ -217,10 +220,10 @@ class TreatmentDesign(object):
         self.treatment_features_ = \
                 self._get_treatment_features()
 
-        # # move the target feature to the end of the dataframe
-        # self.df_ = reindex_target(dataframe=self.df_,
+        # move the target feature to the end of the dataframe
+        # self.df_ = self._reindex_target(dataframe=self.df_,
         #                           target=self.target)
-        #
+
         # # try and cast float features to ints
         # self.df_.loc[:, self.treatment_features_] = \
         #     cast_to_int(dataframe=self.df_,
@@ -252,6 +255,21 @@ class TreatmentDesign(object):
     def transform(self):
         """Transforms new data per the treatment design plans."""
         pass
+
+
+    def _get_dtypes(self):
+        """Finds the dtypes and creates a mapping."""
+        objs = self.df_.select_dtypes(include=OBJECT_DTYPES).columns
+        ints = self.df_.select_dtypes(include=INT_DTYPES).columns
+        floats = self.df_.select_dtypes(include=FLOAT_DTYPES).columns
+        dts = self.df_.select_dtypes(include=DATETIME_DTYPES).columns
+        tds = self.df_.select_dtypes(include=TIMEDELTAS).columns
+        cats = self.df_\
+            .select_dtypes(include=CATEGORICAL_DTYPES).columns
+        dttz = self.df_\
+            .select_dtypes(include=DATETIMETZ_DTYPES).columns
+        bool = self.df_.select_dtypes(include=BOOL_DTYPES).columns
+        return objs, cats, bool, ints, floats, dts, dttz, tds
 
     def _find_hidden_dtypes(self):
         """Finds hidden dtypes among the object dtypes."""
@@ -370,3 +388,6 @@ class TreatmentDesign(object):
             self.df_.loc[:, ~self.df_.columns.isin(
                 self.excluded_features_)].columns.tolist()
         return treatment_features
+
+
+    # def _reindex_target(self):
