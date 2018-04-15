@@ -18,27 +18,6 @@ def get_dtypes(dataframe=None):
     return objs, ints, floats, dts, tds, cats, dttz, bool
 
 
-def fill_missing_values(dataframe=None,
-                        numerical_fill_value=None,
-                        categorical_fill_value=None,
-                        missing_numerical_strategy=None):
-    """Replaces missing values by dtype."""
-    objs = dataframe.select_dtypes(include=["object"]).columns
-    ints = dataframe.select_dtypes(include=INT_DTYPES).columns
-    floats = dataframe.select_dtypes(include=FLOAT_DTYPES).columns
-
-    # replace missing values
-    dataframe.loc[:, objs] = dataframe.loc[:, objs]\
-        .fillna(value=categorical_fill_value)
-    # if
-    dataframe.loc[:, ints] = dataframe.loc[:, ints]\
-        .fillna(value=int(numerical_fill_value))
-    dataframe.loc[:, floats] = dataframe.loc[:, floats]\
-        .fillna(value=numerical_fill_value)
-
-    return dataframe
-
-
 def find_zero_variance_features(dataframe=None,
                                 exclude_zero_variance_features=True,
                                 categorical_fill_value="NA"):

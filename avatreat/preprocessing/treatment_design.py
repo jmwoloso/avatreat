@@ -181,9 +181,7 @@ class TreatmentDesign(object):
         #     self._find_hidden_dtypes()
 
         # fill in missing values
-        self.df_ = fill_missing_values(dataframe=self.df_,
-                                       numerical_fill_value=self.numerical_fill_value,
-                                       categorical_fill_value=self.categorical_fill_value)
+        self._fill_missing_values()
 
         # self.blacklist_ = \
         #     find_zero_variance_features(dataframe=self.df_,
@@ -303,4 +301,19 @@ class TreatmentDesign(object):
             self.boolean_features_ = \
                 pd.Index(self.boolean_features_.tolist() + new_bools)
 
+        return self
+
+
+    def _fill_missing_values(self):
+        """Replaces missing values by dtype."""
+        # replace missing values
+        self.df_.loc[:, self.object_features_] = \
+            self.df_.loc[:, self.object_features_]\
+                .fillna(value=self.categorical_fill_value)
+        self.df_.loc[:, self.integer_features_] = \
+            self.df_.loc[:, self.integer_features_]\
+                .fillna(value=int(self.numerical_fill_value))
+        self.df_.loc[:, self.float_features_] = \
+            self.df_.loc[:, self.float_features_]\
+                .fillna(value=self.numerical_fill_value)
         return self
