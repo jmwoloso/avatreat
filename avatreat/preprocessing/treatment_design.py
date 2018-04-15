@@ -1,4 +1,8 @@
-from avatreat.utils.treatment_design import get_dtypes, find_hidden_dtypes, \
+import numpy as np
+import pandas as pd
+
+
+from avatreat.utils.treatment_design import get_dtypes, \
     fill_missing_values, find_zero_variance_features, \
     get_treatment_features, reindex_target, cast_to_int, \
     find_high_cardinality_features
@@ -7,6 +11,7 @@ from avatreat.utils.treatment_design import get_dtypes, find_hidden_dtypes, \
 class TreatmentDesign(object):
     def __init__(self, index_features=None,
                  target=None, target_type="categorical",
+                 find_hidden_dtypes=False,
                  missing_numerical_strategy="systematically",
                  numerical_fill_value=-1.0, ints_to_categorical=True,
                  categorical_fill_value="NA", rare_level_threshold=0.02,
@@ -31,6 +36,10 @@ class TreatmentDesign(object):
         target_type:   one of {"categorical", "numerical"};
         default="categorical"; whether the design is for a regression or
         classification target.
+
+        find_hidden_dtypes: bool; default=False; whether to try and
+        find numeric features among any features that identify as the
+        object dtype.
 
         missing_numerical_strategy:   one of {"systematically",
         "random"}; default="systematically"; the strategy to employ
@@ -131,6 +140,7 @@ class TreatmentDesign(object):
             else list()
         self.target = target
         self.target_type = target_type
+        self.find_hidden_dtypes = find_hidden_dtypes
         self.missing_numerical_strategy = missing_numerical_strategy
         self.numerical_fill_value = numerical_fill_value if \
             missing_numerical_strategy == "systematically" else "mean"
@@ -164,15 +174,17 @@ class TreatmentDesign(object):
         self.datetime_timezone_features_, self.boolean_features_ = \
             get_dtypes(dataframe=self.df_)
 
-        # # find any hidden dtypes within the object dtypes and
-        # # downcast numerical features if specified
-        # self.df_ = find_hidden_dtypes(dataframe=self.df_)
-        #
-        # # fill in missing values
-        # self.df_ = fill_missing_values(dataframe=self.df_,
-        #                                numerical_fill_value=self.numerical_fill_value,
-        #                                categorical_fill_value=self.categorical_fill_value)
-        #
+        # find any hidden dtypes within the object dtypes and
+        # downcast numerical features if specified
+        # if self.find_hidden_dtypes is True:
+        #     #TODO: on hold for now
+        #     self._find_hidden_dtypes()
+
+        # fill in missing values
+        self.df_ = fill_missing_values(dataframe=self.df_,
+                                       numerical_fill_value=self.numerical_fill_value,
+                                       categorical_fill_value=self.categorical_fill_value)
+
         # self.blacklist_ = \
         #     find_zero_variance_features(dataframe=self.df_,
         #     exclude_zero_variance_features=self.exclude_zero_variance_features,
@@ -222,3 +234,73 @@ class TreatmentDesign(object):
     def transform(self):
         """Transforms new data per the treatment design plans."""
         pass
+
+    def _find_hidden_dtypes(self):
+        """Finds hidden dtypes among the object dtypes."""
+        #TODO: on hold for now
+        # try and convert the object dtypes to numeric
+        new_ints = list()
+        new_floats = list()
+        for feature in self.object_features_:
+            try:
+                # attempt to cast object dtypes to ints
+                self.df_.loc[:, feature] = \
+                    self.df_.loc[:, feature] \
+                        .applymap(lambda x: np.int(x))
+                new_ints.append(feature)
+            except ValueError as e:
+                try:
+                    # int casting failed so try floats now
+                    self.df_.loc[:, feature] = \
+                        self.df_.loc[:, feature] \
+                            .applymap(lambda x: np.float(x))
+                    new_floats.append(feature)
+                except ValueError as e:
+                    pass
+
+        if len(new_ints) > 0:
+            # update our attributes
+            self.object_features_ = \
+                self.object_features_.drop(labels=new_ints)
+            self.integer_features_ = \
+                pd.Index(self.integer_features_.tolist() + new_ints)
+
+        if len(new_floats) > 0:
+            # update our attributes
+            self.object_features_ = \
+                self.object_features_.drop(labels=new_floats)
+            self.float_features_ = \
+                pd.Index(self.float_features_.tolist + new_floats)
+
+        # iterate through the object columns again and check for
+        # booleans disguised as strings
+        new_bools = list()
+        for feature in self.object_features_:
+            uniques = self.df_.loc[:, feature].unique().tolist()
+            if len(uniques) != 2:
+                continue
+            else:
+                try:
+                    uniques = [u.capitalize().strip() for u in uniques]
+                    bools = ["True", "False"]
+                    if set(bools) == set(uniques):
+                        # first capitalize the values
+                        self.df_.loc[:, feature] = \
+                            self.df_.loc[:, feature] \
+                                .map(lambda x: x.capitalize().strip())
+                        # then map to True/False
+                        self.df_.loc[:, feature] = \
+                            self.df_.loc[:, feature].map({"True": True,
+                                                          "False": False})
+                        new_bools.append(feature)
+                except ValueError as e:
+                    continue
+        if len(new_bools) > 0:
+            # update the attributes
+            self.object_features_ = \
+                self.object_features_.drop(labels=new_bools)
+
+            self.boolean_features_ = \
+                pd.Index(self.boolean_features_.tolist() + new_bools)
+
+        return self

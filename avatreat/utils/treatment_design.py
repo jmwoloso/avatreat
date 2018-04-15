@@ -18,47 +18,6 @@ def get_dtypes(dataframe=None):
     return objs, ints, floats, dts, tds, cats, dttz, bool
 
 
-def find_hidden_dtypes(dataframe=None):
-    """Finds hidden dtypes among the object dtypes."""
-    objs = dataframe.select_dtypes(include=["object"]).columns.tolist()
-
-    for feature in objs:
-        try:
-            # attempt to cast object dtypes to numeric
-            dataframe.loc[:, feature] = \
-                dataframe.loc[:, feature]\
-                    .apply(lambda x: pd.to_numeric(x))
-        except ValueError as e:
-            pass
-
-    # iterate through the remaining columns and check for booleans
-    # disguised as strings
-    objs_ = dataframe.select_dtypes(include=["object"]).columns.tolist()
-    for feature in objs_:
-        uniques = dataframe.loc[:, feature].unique().tolist()
-        if len(uniques) != 2:
-            continue
-        else:
-            try:
-                uniques = [u.capitalize().strip() for u in uniques]
-                bools = ["True", "False"]
-                if set(bools) == set(uniques):
-                    # first capitalize the values
-                    dataframe.loc[:, feature] = \
-                        dataframe.loc[:, feature]\
-                            .map(lambda x: x.capitalize().strip())
-                    dataframe.loc[:, feature] = \
-                        dataframe.loc[:, feature].map({"True":  True,
-                                                       "False": False})
-            except ValueError as e:
-                continue
-
-
-    #TODO [ENH]: add discovery for remaining dtypes (datetime, timedelta, bool)
-
-    return dataframe
-
-
 def fill_missing_values(dataframe=None,
                         numerical_fill_value=None,
                         categorical_fill_value=None,
