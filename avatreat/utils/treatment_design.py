@@ -1,14 +1,21 @@
 import pandas as pd
 
-from avatreat.utils.constants import INT_DTYPES, FLOAT_DTYPES, NUMERICAL_DTYPES
+from avatreat.utils.constants import OBJECT_DTYPES, INT_DTYPES, \
+    FLOAT_DTYPES, NUMERICAL_DTYPES, DATETIME_DTYPES, TIMEDELTAS, \
+    CATEGORICAL_DTYPES, DATETIMETZ_DTYPES, BOOL_DTYPES
+
 
 def get_dtypes(dataframe=None):
     """Finds the dtypes and creates a mapping."""
-    objs = dataframe.select_dtypes(include=["object"]).columns
-    ints = dataframe.select_dtypes(include=[INT_DTYPES]).columns
-    floats = dataframe.select_dtypes(include=[FLOAT_DTYPES]).columns
-    dts = dataframe.select_dtypes(include=[])
-    return objs, ints, floats, dts
+    objs = dataframe.select_dtypes(include=OBJECT_DTYPES).columns
+    ints = dataframe.select_dtypes(include=INT_DTYPES).columns
+    floats = dataframe.select_dtypes(include=FLOAT_DTYPES).columns
+    dts = dataframe.select_dtypes(include=DATETIME_DTYPES).columns
+    tds = dataframe.select_dtypes(include=TIMEDELTAS).columns
+    cats = dataframe.select_dtypes(include=CATEGORICAL_DTYPES).columns
+    dttz = dataframe.select_dtypes(include=DATETIMETZ_DTYPES).columns
+    bool = dataframe.select_dtypes(include=BOOL_DTYPES).columns
+    return objs, ints, floats, dts, tds, cats, dttz, bool
 
 
 def find_hidden_dtypes(dataframe=None):
@@ -64,7 +71,7 @@ def fill_missing_values(dataframe=None,
     # replace missing values
     dataframe.loc[:, objs] = dataframe.loc[:, objs]\
         .fillna(value=categorical_fill_value)
-    if
+    # if
     dataframe.loc[:, ints] = dataframe.loc[:, ints]\
         .fillna(value=int(numerical_fill_value))
     dataframe.loc[:, floats] = dataframe.loc[:, floats]\
