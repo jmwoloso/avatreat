@@ -18,52 +18,6 @@ def get_dtypes(dataframe=None):
     return objs, ints, floats, dts, tds, cats, dttz, bool
 
 
-def find_zero_variance_features(dataframe=None,
-                                exclude_zero_variance_features=True,
-                                categorical_fill_value="NA"):
-    """Detects zero-variance features which contain no useful
-    information for downstream algorithms."""
-    blacklist = list()
-
-    if exclude_zero_variance_features is False:
-        return blacklist
-
-    elif exclude_zero_variance_features is True:
-        # numeric features with missing values show up as object dtypes
-        # attempt to cast anything to a number that we can
-        for feature in dataframe.columns:
-            try:
-                dataframe.loc[:, feature] = \
-                    dataframe.loc[:, feature]\
-                        .apply(lambda x: pd.to_numeric(x))
-
-            # thrown when encountering strings
-            except ValueError as e:
-                continue
-
-            # thrown when encountering datetimes
-            except TypeError as e:
-                continue
-
-        # check numeric features for zero-variance
-        for feature in dataframe\
-                .select_dtypes(include=NUMERICAL_DTYPES).columns:
-            uniques = dataframe.loc[:, feature].unique()
-            if len(uniques) < 2:
-                blacklist.append(feature)
-                continue
-
-        # check object features for zero-variance
-        for feature in dataframe.select_dtypes(include=["object"]).columns:
-            vals = dataframe.loc[:, feature].values
-            vals = [v.upper().strip() for v in vals]
-            uniques = pd.unique(vals)
-            if len(uniques) < 2:
-                blacklist.append(feature)
-                continue
-        return blacklist
-
-
 def get_treatment_features(dataframe=None, id_features=None,
                            datetime_features=None, target=None,
                            blacklist=None):

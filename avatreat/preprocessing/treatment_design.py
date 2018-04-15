@@ -3,7 +3,6 @@ import pandas as pd
 
 
 from avatreat.utils.treatment_design import get_dtypes, \
-    fill_missing_values, find_zero_variance_features, \
     get_treatment_features, reindex_target, cast_to_int, \
     find_high_cardinality_features
 
@@ -40,6 +39,10 @@ class TreatmentDesign(object):
         find_hidden_dtypes: bool; default=False; whether to try and
         find numeric features among any features that identify as the
         object dtype.
+
+        exclude_zero_variance_features: bool; default=True; whether
+        to eliminate features with no variance from treatment design
+        as they contain no useful information.
 
         missing_numerical_strategy:   one of {"systematically",
         "random"}; default="systematically"; the strategy to employ
@@ -99,11 +102,6 @@ class TreatmentDesign(object):
         useful for very large datasets as it helps reduce the
         in-memory footprint of the data.
 
-        exclude_zero_variance_features: bool; default=True; whether
-        to eliminate features with no variance from treatment design
-        as they contain no useful information.
-
-
         Attributes
         ----------
         df_:   copy of the supplied dataframe used for modification
@@ -141,6 +139,7 @@ class TreatmentDesign(object):
         self.target = target
         self.target_type = target_type
         self.find_hidden_dtypes = find_hidden_dtypes
+        self.exclude_zero_variance_features = exclude_zero_variance_features
         self.missing_numerical_strategy = missing_numerical_strategy
         self.numerical_fill_value = numerical_fill_value if \
             missing_numerical_strategy == "systematically" else "mean"
@@ -151,7 +150,7 @@ class TreatmentDesign(object):
         self.variable_significance_threshold = variable_significance_threshold
         self.smoothing_factor = smoothing_factor
         self.dtype_compression = dtype_compression
-        self.exclude_zero_variance_features = exclude_zero_variance_features
+
 
 
     def fit(self, DF):
@@ -166,6 +165,9 @@ class TreatmentDesign(object):
         """
         # copy the dataframe for modification
         self.df_ = DF.copy()
+
+        # list of columns to exclude from treatment design
+        self.excluded_features_ = list()
 
         # get the available dtypes
         self.object_features_, self.integer_features_, \
@@ -183,11 +185,15 @@ class TreatmentDesign(object):
         # fill in missing values
         self._fill_missing_values()
 
-        # self.blacklist_ = \
-        #     find_zero_variance_features(dataframe=self.df_,
-        #     exclude_zero_variance_features=self.exclude_zero_variance_features,
-        #                                 categorical_fill_value=self.categorical_fill_value)
-        #
+        # find features with zero variance and drop them, but note
+        # which ones we dropped
+        if self.exclude_zero_variance_features is True:
+            self.zero_variance_features_ = \
+                self._find_zero_variance_features()
+            if len(self.zero_variance_features_) > 0:
+                self.excluded_features_\
+                    .append(*self.zero_variance_features_)
+
         # # get a list of the features to be included in treatment
         # # design; also removes zero-variance features
         # self.treatment_features_ = get_treatment_features(
@@ -317,3 +323,24 @@ class TreatmentDesign(object):
             self.df_.loc[:, self.float_features_]\
                 .fillna(value=self.numerical_fill_value)
         return self
+
+    def _find_zero_variance_features(self):
+        """Detects zero-variance features which contain no useful
+            information for downstream algorithms."""
+        blacklist = list()
+        # check numeric features for zero-variance
+        for feature in self.integer_features_.tolist() + \
+                       self.float_features_.tolist():
+            uniques = self.df_.loc[:, feature].unique()
+            if len(uniques) < 2:
+                blacklist.append(feature)
+                continue
+        # check object features for zero-variance
+        for feature in self.object_features_:
+            vals = self.df_.loc[:, feature].values
+            vals = [v.upper().strip() for v in vals]
+            uniques = pd.unique(vals)
+            if len(uniques) < 2:
+                blacklist.append(feature)
+                continue
+        return blacklist
