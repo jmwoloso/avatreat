@@ -1,4 +1,4 @@
-from .design import TreatmentDesign
+from .treatment_design import TreatmentDesign
 
 
 __all__ = [

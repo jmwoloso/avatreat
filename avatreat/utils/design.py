@@ -1,6 +1,14 @@
 import pandas as pd
 
-from .constants import INT_DTYPES, FLOAT_DTYPES, NUMERICAL_DTYPES
+from avatreat.utils.constants import INT_DTYPES, FLOAT_DTYPES, NUMERICAL_DTYPES
+
+def get_dtypes(dataframe=None):
+    """Finds the dtypes and creates a mapping."""
+    objs = dataframe.select_dtypes(include=["object"]).columns
+    ints = dataframe.select_dtypes(include=[INT_DTYPES]).columns
+    floats = dataframe.select_dtypes(include=[FLOAT_DTYPES]).columns
+    dts = dataframe.select_dtypes(include=[])
+    return objs, ints, floats, dts
 
 
 def find_hidden_dtypes(dataframe=None):
@@ -45,8 +53,9 @@ def find_hidden_dtypes(dataframe=None):
 
 
 def fill_missing_values(dataframe=None,
-                        numerical_fill_value=-1.0,
-                        categorical_fill_value="NA"):
+                        numerical_fill_value=None,
+                        categorical_fill_value=None,
+                        missing_numerical_strategy=None):
     """Replaces missing values by dtype."""
     objs = dataframe.select_dtypes(include=["object"]).columns
     ints = dataframe.select_dtypes(include=INT_DTYPES).columns
@@ -55,6 +64,7 @@ def fill_missing_values(dataframe=None,
     # replace missing values
     dataframe.loc[:, objs] = dataframe.loc[:, objs]\
         .fillna(value=categorical_fill_value)
+    if
     dataframe.loc[:, ints] = dataframe.loc[:, ints]\
         .fillna(value=int(numerical_fill_value))
     dataframe.loc[:, floats] = dataframe.loc[:, floats]\

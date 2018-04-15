@@ -1,4 +1,4 @@
-from ..utils.routines.fit import find_hidden_dtypes, \
+from avatreat.utils.design import find_hidden_dtypes, \
     fill_missing_values, find_zero_variance_features, \
     get_treatment_features, reindex_target, cast_to_int, \
     get_column_dtypes, find_high_cardinality_features
@@ -221,7 +221,7 @@ class TreatmentDesign(object):
                                            rare_level_threshold=0.02,
                                            allowable_rare_percentage=0.1)
 
-
+        return self
 
 
 
