@@ -18,20 +18,6 @@ def get_dtypes(dataframe=None):
     return objs, ints, floats, dts, tds, cats, dttz, bool
 
 
-def get_treatment_features(dataframe=None, id_features=None,
-                           datetime_features=None, target=None,
-                           blacklist=None):
-    """Creates a list of features that will be used for treatment
-    design."""
-    # keep all features except id, datetime, target and blacklisted
-    treatment_features = \
-        dataframe.loc[:, ~dataframe.columns.isin(id_features +
-                                                 datetime_features +
-                                                 [target] +
-                                                 blacklist)].columns.tolist()
-    return treatment_features
-
-
 def reindex_target(dataframe=None, target=None):
     """Moves the target feature to the end of the dataframe."""
     # move `target` column to the end (if present)

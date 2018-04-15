@@ -3,12 +3,12 @@ import pandas as pd
 
 
 from avatreat.utils.treatment_design import get_dtypes, \
-    get_treatment_features, reindex_target, cast_to_int, \
+    reindex_target, cast_to_int, \
     find_high_cardinality_features
 
 
 class TreatmentDesign(object):
-    def __init__(self, index_features=None,
+    def __init__(self, index_feature=None,
                  target=None, target_type="categorical",
                  find_hidden_dtypes=False,
                  missing_numerical_strategy="systematically",
@@ -24,10 +24,9 @@ class TreatmentDesign(object):
 
         Parameters
         ----------
-        index_features:   one of {list of features, None};
-        default=None; list of features that are purely for
-        identification/indexing and will be excluded from treatment
-        design.
+        index_feature:   str; default=None; name of the feature that
+        serves as an identifying index for the dataset. this feature
+        will be excluded from treatment design.
 
         target:   one of {str, None}; default=None; name of the
         target feature in the dataset.
@@ -106,18 +105,27 @@ class TreatmentDesign(object):
         ----------
         df_:   copy of the supplied dataframe used for modification
 
-        blacklist_: features to be excluded from treatment design due
-        to having zero-variance.
+        excluded_features_: features to be excluded from treatment
+        design
 
         treatment_features_:   features to be used for treatment design.
 
-        int_features_:   integer features of the dataframe.
+        object_features_:   features with the object dtype.
 
-        float_features_:   float features of the dataframe.
+        categorical_features_:  features with the category dtype.
 
-        object_features_:   object/str features of the dataframe.
+        boolean_features_:  features with the bool_ dtype.
 
-        bool_features_: boolean features of the dataframe.
+        integer_features_:  features with the integer dtype.
+
+        float_features_:    features with the float dtype.
+
+        datetime_features_: features with the datetime dtype.
+
+        timedelta_features_:    features with the timedelta dtype.
+
+        datetime_timezone_features_:    features with the datetime
+        timezone dtype.
 
         high_cardinality_features_: features considered to be
         high-cardinality features (high relative number of category
@@ -133,9 +141,7 @@ class TreatmentDesign(object):
 
         """
         # if no id features are supplied, replace None with empty list
-        self.index_features = list(index_features) \
-            if index_features is not None \
-            else list()
+        self.index_feature = index_feature
         self.target = target
         self.target_type = target_type
         self.find_hidden_dtypes = find_hidden_dtypes
@@ -169,12 +175,24 @@ class TreatmentDesign(object):
         # list of columns to exclude from treatment design
         self.excluded_features_ = list()
 
+        # exclude target and index if passed in
+        if self.target is not None:
+            self.excluded_features_.append(self.target)
+        if self.index_feature is not None:
+            self.excluded_features_.append(self.index_feature)
+
         # get the available dtypes
         self.object_features_, self.integer_features_, \
         self.float_features_, self.datetime_features_, \
         self.timedelta_features_, self.categorical_features_, \
         self.datetime_timezone_features_, self.boolean_features_ = \
             get_dtypes(dataframe=self.df_)
+
+        # TODO: add support for feature engineering with datetimes
+        self.excluded_features_ += \
+            self.datetime_timezone_features_.tolist()
+        self.excluded_features_ += self.datetime_features_.tolist()
+        self.excluded_features_ += self.timedelta_features_.tolist()
 
         # find any hidden dtypes within the object dtypes and
         # downcast numerical features if specified
@@ -194,15 +212,11 @@ class TreatmentDesign(object):
                 self.excluded_features_\
                     .append(*self.zero_variance_features_)
 
-        # # get a list of the features to be included in treatment
-        # # design; also removes zero-variance features
-        # self.treatment_features_ = get_treatment_features(
-        #     dataframe=self.df_,
-        #     id_features=self.index_features,
-        #     datetime_features=self.datetime_features,
-        #     target=self.target,
-        #     blacklist=self.blacklist_)
-        #
+        # get a list of the features to be included in treatment
+        # design; also removes zero-variance features
+        self.treatment_features_ = \
+                self._get_treatment_features()
+
         # # move the target feature to the end of the dataframe
         # self.df_ = reindex_target(dataframe=self.df_,
         #                           target=self.target)
@@ -324,6 +338,7 @@ class TreatmentDesign(object):
                 .fillna(value=self.numerical_fill_value)
         return self
 
+
     def _find_zero_variance_features(self):
         """Detects zero-variance features which contain no useful
             information for downstream algorithms."""
@@ -344,3 +359,14 @@ class TreatmentDesign(object):
                 blacklist.append(feature)
                 continue
         return blacklist
+
+
+    def _get_treatment_features(self):
+        """Creates a list of features that will be used for treatment
+        design."""
+        treatment_features = list()
+        # keep all features not excluded up to this point
+        treatment_features += \
+            self.df_.loc[:, ~self.df_.columns.isin(
+                self.excluded_features_)].columns.tolist()
+        return treatment_features
