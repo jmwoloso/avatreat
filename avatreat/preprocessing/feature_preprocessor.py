@@ -1,3 +1,5 @@
+import numbers
+
 import numpy as np
 import pandas as pd
 
@@ -5,22 +7,22 @@ from avatreat.utils.constants import OBJECT_DTYPES, INT_DTYPES, \
     FLOAT_DTYPES, NUMERICAL_DTYPES, DATETIME_DTYPES, TIMEDELTAS, \
     CATEGORICAL_DTYPES, DATETIMETZ_DTYPES, BOOL_DTYPES
 
-from avatreat.utils.treatment_design import \
-    cast_to_int, \
-    find_high_cardinality_features
+
+
+
 
 
 class FeaturePreprocessor(object):
     def __init__(self, index_feature=None,
-                 target=None, target_type="categorical",
+                 target_feature=None, modeling_method="classification",
                  find_hidden_numerics=False,
                  exclude_zero_variance_features=True,
                  floats_to_ints=False,
                  ints_as_categories=True,
-                 missing_numeric_strategy="systematically",
+                 missing_numerical_strategy="systematically",
                  numerical_fill_value=-1.0,
                  categorical_fill_value="NA", rare_level_threshold=0.02,
-                 allowable_rare_percentage=0.1,
+                 max_rare_percentage=0.1,
                  variable_significance_threshold="1/n",
                  smoothing_factor=0.0,
                  dtype_compression=False):
@@ -33,12 +35,12 @@ class FeaturePreprocessor(object):
         serves as an identifying index for the dataset. this feature
         will be excluded from treatment design.
 
-        target:   one of {str, None}; default=None; name of the
+        target_feature:   one of {str, None}; default=None; name of the
         target feature in the dataset.
 
-        target_type:   one of {"categorical", "numerical"};
-        default="categorical"; whether the design is for a regression or
-        classification target.
+        modeling_method:   one of {"classification", "regression"};
+        default="classification"; whether the design is for a
+        classification or regression target.
 
         find_hidden_numerics: bool; default=False; whether to try and
         find numerical features among any features that identify as the
@@ -63,23 +65,20 @@ class FeaturePreprocessor(object):
         aggressive assumptions hence the default values of
         False for both.
 
-        missing_numeric_strategy:   one of {"systematically",
-        "random"}; default="systematically"; the strategy to employ
-        when filling in missing numerical values; used in conjunction
-        with `numerical_fill_value`; if strategy is set to "random" then
-        `numerical_fill_value` will be set to "mean" automatically
-        regardless of the value provided.
+        missing_numerical_strategy:   one of ("systematic", "random");
+        default="systematically"; the strategy to employ when filling in
+        missing numerical values; used in conjunction with
+        `numerical_fill_value`; if strategy is set to "random" then
+        `numerical_fill_value` will be ignored and the mean will be
+        used instead.
 
         NOTE: the default strategy of "systematically" is the safe
         choice as importance is often implicit in missing values.
 
-        numerical_fill_value:   one of {float, "mean"};
-        default=-1.0; value to fill in missing numerical rows with;
-        used in conjunction with `missing_numerical_strategy`; will
-        be converted to np.int when attempting to fill missing int
-        values.
-
-
+        numerical_fill_value:   float; default=-1.0; value to fill in
+        missing numerical rows with; used in conjunction with
+        `missing_numerical_strategy`; will be converted to np.int
+        when attempting to fill missing int values.
 
         categorical_fill_value:   str; default="NA"; string to be
         used to fill in missing categorical levels.
@@ -92,7 +91,7 @@ class FeaturePreprocessor(object):
         NOTE: rare levels will be pooled together when creating
         indicators for categorical features.
 
-        allowable_rare_percentage:   float; default=0.1; total
+        max_rare_percentage:   float; default=0.1; total
         percentage of the dataset that all "rare" levels of a
         categorical feature must not exceed in order to pool rare
         levels; aims to prevent categorical features with
@@ -105,6 +104,10 @@ class FeaturePreprocessor(object):
         None}; default="1/n" features; significance level that a
         feature must achieve in order to remain in the final treated
         dataset; if `None` all features will be kept.
+
+        categorical_encoding_method: one of {"auto", "scipy", "sklearn",
+        "pandas"}; default="auto"; the method used to encode the
+        levels of a categorical feature.
 
         smoothing_factor:   float; default=0.0; number of
         pseudo-observations to add as a Laplace smoothing factor;
@@ -162,23 +165,20 @@ class FeaturePreprocessor(object):
         """
         # if no id features are supplied, replace None with empty list
         self.index_feature = index_feature
-        self.target = target
-        self.target_type = target_type
+        self.target_feature = target_feature
+        self.modeling_method = modeling_method
         self.find_hidden_numerics = find_hidden_numerics
         self.exclude_zero_variance_features = exclude_zero_variance_features
         self.floats_to_ints = floats_to_ints
         self.ints_as_categories = ints_as_categories
-        self.missing_numerical_strategy = missing_numeric_strategy
-        self.numerical_fill_value = numerical_fill_value if \
-            missing_numeric_strategy == "systematically" else "mean"
-
+        self.missing_numerical_strategy = missing_numerical_strategy
+        self.numerical_fill_value = numerical_fill_value
         self.categorical_fill_value = categorical_fill_value
         self.rare_level_threshold = rare_level_threshold
-        self.allowable_rare_percentage = allowable_rare_percentage
+        self.max_rare_percentage = max_rare_percentage
         self.variable_significance_threshold = variable_significance_threshold
         self.smoothing_factor = smoothing_factor
         self.dtype_compression = dtype_compression
-
 
 
     def fit(self, X):
@@ -191,14 +191,15 @@ class FeaturePreprocessor(object):
         design treatments.
 
         """
+        #TODO: input validation
         self.is_fitted_ = False
         # copy the dataframe for modification
         self.df_ = X.copy()
 
         self.excluded_features_ = list()
 
-        if self.target is not None:
-            self.excluded_features_.append(self.target)
+        if self.target_feature is not None:
+            self.excluded_features_.append(self.target_feature)
         if self.index_feature is not None:
             self.excluded_features_.append(self.index_feature)
 
@@ -216,8 +217,6 @@ class FeaturePreprocessor(object):
         else:
             self.hidden_ints_ = list()
             self.hidden_floats_ = list()
-
-
 
         # TODO: add support for feature engineering with datetimes
         # and then remove this method
@@ -246,6 +245,17 @@ class FeaturePreprocessor(object):
             self.integer_castables_ = self._cast_to_int()
         else:
             self.integer_castables_ = list()
+
+        #TODO: implement this
+        if self.dtype_compression is True:
+            pass
+        else:
+            # self.compressed_features_ = list()
+            pass
+
+        # find high-cardinality features
+        self.high_cardinality_features_ = \
+            self._find_high_cardinality_features()
 
 
 
@@ -285,8 +295,8 @@ class FeaturePreprocessor(object):
     def _get_dtypes(self):
         """Finds the dtypes in the dataset."""
         features = self.df_.columns
-        if self.target is not None:
-            features = features.drop(labels=[self.target])
+        if self.target_feature is not None:
+            features = features.drop(labels=[self.target_feature])
         if self.index_feature is not None:
             features = features.drop(labels=[self.index_feature])
         objs = self.df_.loc[:, features]\
@@ -413,59 +423,28 @@ class FeaturePreprocessor(object):
             return self
 
 
-    # def _cast_to_category(self):
-    #     """Attempts to cast int features to categories."""
-    #     # if we're at the fit stage, we just want to know which ones
-    #     # can safely be cast to categories
-    #     if self.is_fitted_ is False:
-    #         castables = list()
-    #         for feature in self.integer_features_.tolist() + \
-    #                        self.hidden_ints_:
-    #             try:
-    #                 cat_count = self.df_.loc[:, feature] \
-    #                     .apply(lambda x: x.is_integer()).sum()
-    #                 castables.append(feature)
-    #             except:
-    #                 pass
-    #         return castables
-    #     # go ahead and actually cast it
-    #     else:
-    #         self.df_.loc[:, self.category_castables_] = \
-    #             self.df_ \
-    #                 .loc[:, self.category_castables_]\
-    #                 .astype("category")
-    #         return self
-
-    def find_high_cardinality_features(dataframe=None,
-                                       object_features=None,
-                                       rare_level_threshold=0.02,
-                                       allowable_rare_percentage=0.1):
-        """Returns a list of high-cardinality features and those which
-        can be cast to categorical."""
+    def _find_high_cardinality_features(self):
+        """Returns a list of high-cardinality features."""
         # container to hold high-cardinality features
         high_cardinality = list()
 
-        # container to hold categorical features; we'll actually convert
-        # these to the "category" dtype to save memory
-        categorical = list()
-
         # do some simple checks first
-        for feature in object_features:
+        for feature in self.object_features_:
             # counter that we'll use to determine if there are too many
             # unique levels for the current feature
             rare_level_row_counts = dict()
 
             # unique features for the
-            unique_vals = dataframe.loc[:, feature].unique()
+            unique_vals = self.df_.loc[:, feature].unique()
 
             # if every row is a unique value, add it to the list and skip
             # to the next feature
-            if len(unique_vals) == dataframe.shape[0]:
+            if len(unique_vals) == self.df_.shape[0]:
                 high_cardinality.append(feature)
                 continue
 
             # get value counts for each level
-            gb = dataframe.groupby(feature).agg({feature: "count"})
+            gb = self.df_.groupby(feature).agg({feature: "count"})
             gb.columns = ["count"]
             gb = gb.reset_index()
             gb.columns = ["level", "count"]
@@ -475,24 +454,22 @@ class FeaturePreprocessor(object):
             # if the level occurs below the threshold, add its number of
             # rows to the dict
             for key, val in zip(keys, vals):
-                if val / dataframe.shape[0] <= rare_level_threshold:
+                if val / self.df_.shape[0] <= self.rare_level_threshold:
                     rare_level_row_counts[key] = val
 
             # sum the values of the rare dict and calculate what
             # percentage of the dataset is occupied by rare levels for
             # the current feature
             rare_count = sum(rare_level_row_counts.values())
-            rare_percent = rare_count / dataframe.shape[0]
+
+            rare_percent = rare_count / self.df_.shape[0]
 
             # if the rare percent is greater than the allowable percent,
             # this is a high-cardinality feature
-            if rare_percent > allowable_rare_percentage:
+            if rare_percent > self.max_rare_percentage:
                 high_cardinality.append(feature)
-            # or it is eligible to be encoded as a "category" dtype
-            elif rare_percent <= allowable_rare_percentage:
-                categorical.append(feature)
+        return high_cardinality
 
-        return high_cardinality, categorical
 
     def _reindex_target(self):
         """Moves the target feature to the end of the dataframe."""
@@ -520,7 +497,28 @@ class FeaturePreprocessor(object):
                 .fillna(value=self.numerical_fill_value)
         return df
 
-
+    # def _cast_to_category(self):
+    #     """Attempts to cast int features to categories."""
+    #     # if we're at the fit stage, we just want to know which ones
+    #     # can safely be cast to categories
+    #     if self.is_fitted_ is False:
+    #         castables = list()
+    #         for feature in self.integer_features_.tolist() + \
+    #                        self.hidden_ints_:
+    #             try:
+    #                 cat_count = self.df_.loc[:, feature] \
+    #                     .apply(lambda x: x.is_integer()).sum()
+    #                 castables.append(feature)
+    #             except:
+    #                 pass
+    #         return castables
+    #     # go ahead and actually cast it
+    #     else:
+    #         self.df_.loc[:, self.category_castables_] = \
+    #             self.df_ \
+    #                 .loc[:, self.category_castables_]\
+    #                 .astype("category")
+    #         return self
 
 
 
