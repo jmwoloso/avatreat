@@ -7,7 +7,7 @@ from avatreat.utils.constants import OBJECT_DTYPES, INT_DTYPES, \
     FLOAT_DTYPES, NUMERICAL_DTYPES, DATETIME_DTYPES, TIMEDELTAS, \
     CATEGORICAL_DTYPES, DATETIMETZ_DTYPES, BOOL_DTYPES
 
-
+from ..preprocessing import DataFrameTransformer
 
 
 
@@ -25,6 +25,9 @@ class FeaturePreprocessor(object):
                  max_rare_percentage=0.1,
                  variable_significance_threshold="1/n",
                  smoothing_factor=0.0,
+                 scale_floats=True,
+                 normalize_floats=False,
+                 normalization_range=(0.0, 1.0),
                  dtype_compression=False):
         """
         Class for designing data treatments.
@@ -113,6 +116,23 @@ class FeaturePreprocessor(object):
         pseudo-observations to add as a Laplace smoothing factor;
         reduces the range of predictions of rare levels.
 
+        scale_floats:   bool; default=True; whether to apply
+        standardization to the float columns just prior to returning
+        the treated dataframe.
+
+        NOTE: uses `StandardScaler` from scikit-learn.
+
+        normalize_floats:   bool; default=False; whether to apply
+        normalization to the float columns just prior to returning
+        the treated dataframe.
+
+        NOTE: uses `MinMaxScaler` from scikit-learn.
+
+        normalization_range:    tuple of floats; default=(0.,
+        1.); the range over which float features should be normalized
+        when `normalize_floats` is True; ignored when
+        `normalize_floats` is False.
+
         dtype_compression:   bool; default=True; whether to
         downcast column dtypes (e.g. np.int64 -> np.int8);
         downcasting depends on the range of values present for a
@@ -178,6 +198,9 @@ class FeaturePreprocessor(object):
         self.max_rare_percentage = max_rare_percentage
         self.variable_significance_threshold = variable_significance_threshold
         self.smoothing_factor = smoothing_factor
+        self.scale_floats = scale_floats
+        self.normalize_floats = normalize_floats
+        self.nomralization_range = normalization_range
         self.dtype_compression = dtype_compression
 
 
@@ -257,39 +280,29 @@ class FeaturePreprocessor(object):
         self.high_cardinality_features_ = \
             self._find_high_cardinality_features()
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        # # find high-cardinality features from within object features
-        # self.high_cardinality_features_, self.categorical_features_ = \
-        #     find_high_cardinality_features(dataframe=self.df_,
-        #                                    object_features=self.object_features_,
-        #                                    rare_level_threshold=0.02,
-        #                                    allowable_rare_percentage=0.1)
-
+        self.is_fitted_ = True
         return self
 
 
 
     def transform(self):
         """Transforms new data per the treatment design plans."""
+        self.dataframe_transformer = DataFrameTransformer()
         self.treated_df_ = self.df_.copy()
+
+        # re-index the target feature to put it at the end
+        if self.target_feature is not None:
+            self._reindex_target()
+            self.treated_df_.pipe()
+
+        # re-index the index to put it first
+        if self.index_feature is not None:
+            self._reindex_index()
+            self.treated_df_.pipe(self._reindex_index)
+
         # fill in missing values
-        self.df_ = self._fill_missing_values()
-        pass
+        # self.df_ = self._fill_missing_values()
+        return self
 
 
     def _get_dtypes(self):
@@ -473,13 +486,23 @@ class FeaturePreprocessor(object):
 
     def _reindex_target(self):
         """Moves the target feature to the end of the dataframe."""
-        # move `target` column to the end (if present)
+        # move `target` column to the end
         features = self.df_.columns.tolist()
         insert_loc = len(features) - 1
         features.insert(insert_loc,
-                        features.pop(features.index(self.target)))
-        dataframe = self.df_.reindex(columns=features)
-        return dataframe
+                        features.pop(features.index(self.target_feature)))
+        self.df_ = self.df_.reindex(columns=features)
+        return self
+
+
+    def _reindex_index(self):
+        """Moves the index feature to the beginning of the dataframe."""
+        features = self.df_.columns.tolist()
+        insert_loc = 0
+        features.insert(insert_loc,
+                        features.pop(features.index(self.index_feature)))
+        self.df_ = self.df_.reindex(columns=features)
+        return self
 
 
     def _fill_missing_values(self):
