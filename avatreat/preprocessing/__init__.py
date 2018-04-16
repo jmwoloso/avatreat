@@ -1,6 +1,6 @@
-from .treatment_design import TreatmentDesign
+from .feature_preprocessor import FeaturePreprocessor
 
 
 __all__ = [
-    "TreatmentDesign",
+    "FeaturePreprocessor",
 ]
