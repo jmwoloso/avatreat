@@ -1,9 +1,4 @@
-"""
-constants.py:   contains various constants used throughout the
-preprocessing routines.
-"""
-# Author: Jason Wolosonovich <jason@avaland.io>
-# License: BSD 3-clause
+
 
 OBJECT_DTYPES = ["object"]
 
