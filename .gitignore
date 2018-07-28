@@ -161,4 +161,4 @@ data/
 scratch/
 old/
 tests/
-utils/test_fit.py
+test_fit.py
