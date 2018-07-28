@@ -160,3 +160,5 @@ venv.bak/
 data/
 scratch/
 old/
+tests/
+utils/test_fit.py
